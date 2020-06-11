@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <!-- <script src="https://raw.githubusercontent.com/dchest/tweetnacl-js/master/nacl.min.js"></script> -->
+    <!-- <script src="https://github.com/dchest/tweetnacl-util-js/blob/master/nacl-util.min.js"></script> -->
+    <script src="nacl.min.js"></script>
+    <script src="nacl-util.min.js"></script>
+    <script src="ed2curve.min.js"></script>
+  </head>
+  <body>
+
+    <h1>It works</h1>
+    <script>
+    // Generate new sign key pair.
+    var myKeyPair = nacl.sign.keyPair();
+
+    // Share public key with a peer.
+    console.log('publicKey: ', myKeyPair.publicKey.toString());
+
+    // Receive peer's public key.
+    var theirPublicKey = myKeyPair.publicKey;// ... receive
+
+    // Sign a message
+    var message = nacl.util.decodeUTF8('Hello!');
+    var signedMessage = nacl.sign(message, myKeyPair.secretKey);
+
+    // Send message to peer. They can now verify it using
+    // the previously shared public key (myKeyPair.publicKey).
+    // ...
+
+    // Receive a signed message from peer and verify it using their public key.
+    var theirSignedMessage = signedMessage;// ... receive
+    var theirMessage = nacl.sign.open(theirSignedMessage, theirPublicKey);
+    if (theirMessage) {
+      // ... we got the message ...
+    }
+
+    // Encrypt a message to their public key.
+    // But first, we need to convert our secret key and their public key
+    // from Ed25519 into the format accepted by Curve25519.
+    //
+    // Note that peers are not involved in this conversion -- all they need
+    // to know is the signing public key that we already shared with them.
+
+    var theirDHPublicKey = ed2curve.convertPublicKey(theirPublicKey);
+    var myDHSecretKey = ed2curve.convertSecretKey(myKeyPair.secretKey);
+
+    const nonce = nacl.randomBytes(24);
+    var anotherMessage = nacl.util.decodeUTF8('Keep silence');
+    var encryptedMessage = nacl.box(anotherMessage, nonce, theirDHPublicKey, myDHSecretKey);
+
+    // When we receive encrypted messages from peers,
+    // we need to use converted keys to open them.
+
+    var theirEncryptedMessage = encryptedMessage;// ... receive
+    var decryptedMessage = nacl.box.open(theirEncryptedMessage, nonce, theirDHPublicKey, myDHSecretKey);
+    console.log('decryptedMessage: ', decryptedMessage.toString());
+    </script>
+  </body>
+</html>
